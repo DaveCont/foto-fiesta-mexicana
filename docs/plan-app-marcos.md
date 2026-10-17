@@ -34,7 +34,7 @@ Construir la PWA descrita en `docs/superpowers/specs/2026-10-16-foto-marcos-desi
    - Defaults neutros → salida idéntica a la entrada (probar).
 
 6. **`js/vignette.js` (puro)** — calibración de mancha:
-   - `buildCalibrationMap(img)` → reducir a lado largo 256, gris, desenfoque gaussiano grande (sigma ≈ 8% del lado largo, implementado como box blur de 3 pasadas), normalizar por percentil 90 → `{width, height, data: Float32Array}` con valores en (0, 1].
+   - `buildCalibrationMap(img)` → reducir a lado largo 256, gris, desenfoque gaussiano (radio de caja ≈ 3% del lado largo, 3 pasadas, implementado como box blur de 3 pasadas), normalizar por percentil 90 → `{width, height, data: Float32Array}` con valores en (0, 1].
    - `applyCalibration(img, map, intensity)` → por píxel `gain = 1 / lerp(1, mapBilinear(x,y), intensity)`, gain máx. 2.5, aplicar a R,G,B.
    - Guardar mapas por orientación (`portrait` / `landscape`) en IndexedDB. Calibración se hace desde Ajustes con la cámara nativa; mostrar instrucciones: limpiar lente, superficie lisa clara, mismo zoom del evento, recalibrar cada evento.
 
