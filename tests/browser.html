@@ -1,0 +1,23 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><title>Verificación del flujo</title><body><pre id="status">EJECUTANDO</pre><iframe src="../index.html" id="app"></iframe><script type="module">
+const status=document.querySelector('#status'),iframe=document.querySelector('#app');
+const wait=async(fn)=>{for(let i=0;i<200;i++){if(fn())return;await new Promise(r=>setTimeout(r,100));}throw Error('Tiempo de espera agotado');};
+try{
+ await wait(()=>iframe.contentDocument?.querySelector('#galleryInput'));
+ const w=iframe.contentWindow,d=w.document;
+ await wait(()=>d.querySelector('#filters').children.length===6);
+ const errors=[];w.addEventListener('error',e=>errors.push(e.message));
+ async function upload(id,path,type){const blob=await(await fetch(path)).blob(),dt=new w.DataTransfer();dt.items.add(new w.File([blob],path.split('/').pop(),{type}));d.getElementById(id).files=dt.files;d.getElementById(id).dispatchEvent(new w.Event('change'));}
+ d.querySelector('#settings').click();await wait(()=>!d.querySelector('#config').hidden);
+ await upload('frameInput','fixtures/marco-horizontal.png','image/png');await wait(()=>d.querySelector('#userFrames button'));
+ d.querySelector('#closeSettings').click();
+ await upload('galleryInput','fixtures/foto.png','image/png');await wait(()=>!d.querySelector('#edit').hidden);
+ await wait(()=>d.querySelectorAll('#frames button').length>=2);d.querySelectorAll('#frames button')[1].click();
+ d.querySelector('#brightness').value=10;d.querySelector('#brightness').dispatchEvent(new w.Event('input'));
+ d.querySelector('#auto').click();d.querySelector('#client').click();await wait(()=>!d.querySelector('#customer').hidden);d.querySelector('#next').click();d.querySelector('#exitCustomer').click();
+ d.querySelector('#done').click();await wait(()=>!d.querySelector('#final').hidden);
+ const response=await fetch(d.querySelector('#result').src),blob=await response.blob(),bitmap=await createImageBitmap(blob);
+ if(blob.type!=='image/jpeg'||bitmap.width!==1800||bitmap.height!==1200)throw Error('JPEG incorrecto');
+ d.querySelector('#save').click();d.querySelector('#another').click();if(d.querySelector('#home').hidden)throw Error('No regresó al inicio');
+ if(errors.length)throw Error(errors.join('; '));status.textContent=`OK: flujo completo, marco, ajustes, cliente, JPEG ${bitmap.width}×${bitmap.height}, Guardar y Tomar otra`;
+}catch(e){status.textContent='ERROR: '+e.message;}
+</script></body></html>

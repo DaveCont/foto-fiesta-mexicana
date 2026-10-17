@@ -1,0 +1,8 @@
+const memory={frames:new Map(),calibration:new Map()};
+const deleted={frames:new Set(),calibration:new Set()};
+let database;
+async function db(){if(!database)database=new Promise((resolve,reject)=>{const r=indexedDB.open('foto-fiesta',1);r.onupgradeneeded=()=>{for(const s of Object.keys(memory))if(!r.result.objectStoreNames.contains(s))r.result.createObjectStore(s,{keyPath:'id'});};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});return database;}
+export async function all(store){try{const d=await db();const rows=await new Promise((resolve,reject)=>{const r=d.transaction(store).objectStore(store).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});for(const r of rows)if(!memory[store].has(r.id)&&!deleted[store].has(r.id))memory[store].set(r.id,r);}catch{}return [...memory[store].values()];}
+export async function put(store,value){deleted[store].delete(value.id);memory[store].set(value.id,value);try{const d=await db();await new Promise((resolve,reject)=>{const t=d.transaction(store,'readwrite');t.objectStore(store).put(value);t.oncomplete=resolve;t.onerror=()=>reject(t.error);t.onabort=()=>reject(t.error);});}catch{} }
+export async function remove(store,id){deleted[store].add(id);memory[store].delete(id);try{const d=await db();await new Promise((resolve,reject)=>{const t=d.transaction(store,'readwrite');t.objectStore(store).delete(id);t.oncomplete=resolve;t.onerror=()=>reject(t.error);t.onabort=()=>reject(t.error);});}catch{} }
+export function preferences(value){try{if(value)localStorage.setItem('preferences',JSON.stringify(value));return value||JSON.parse(localStorage.getItem('preferences')||'{}');}catch{return value||{};}}

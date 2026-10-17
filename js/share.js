@@ -1,0 +1,2 @@
+export function save(file){const url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download=file.name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+export async function share(file){try{if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'Foto Fiesta Mexicana'});return 'shared';}}catch(e){if(e.name==='AbortError')return 'cancelled';}save(file);return 'downloaded';}

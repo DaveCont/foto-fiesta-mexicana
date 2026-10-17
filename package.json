@@ -1,0 +1,1 @@
+{"name":"foto-fiesta-mexicana","version":"1.0.0","private":true,"type":"module","scripts":{"test":"node --test --test-isolation=none tests/index.js","build:frames":"node scripts/build-frames.mjs","serve":"node scripts/serve.mjs"}}
