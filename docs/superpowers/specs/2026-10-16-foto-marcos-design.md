@@ -80,7 +80,7 @@ js/compose.js      (encuadre, composición final, export JPEG)
 js/share.js        (compartir/imprimir/guardar)
 js/storage.js      (IndexedDB/localStorage)
 Marcos/            (PNG originales — no modificar)
-scripts/build-frames.mjs  (genera frames.json y miniaturas desde Marcos/)
+scripts/build-frames.mjs  (genera frames.json desde Marcos/, sin dependencias; miniaturas se generan en la app)
 tests/             (pruebas unitarias de adjust, vignette, compose)
 ```
 
