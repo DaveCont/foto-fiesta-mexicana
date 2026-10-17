@@ -1,4 +1,4 @@
-const CACHE = "foto-fiesta-v2";
+const CACHE = "foto-fiesta-v3";
 const APP = [
   "./",
   "index.html",

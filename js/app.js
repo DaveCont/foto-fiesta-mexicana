@@ -1,5 +1,5 @@
 import { defaults } from "./adjust.js";
-import { decode, reduced, orientation } from "./camera.js";
+import { decode, reduced, orientation, isBlank } from "./camera.js";
 import {
   loadFrames,
   matching,
@@ -104,7 +104,7 @@ function navigate(screen) {
   state.screen = screen;
   for (const id of ["home", "edit", "customer", "final", "config"])
     $(id).hidden = id !== screen;
-  $("settings").hidden = screen === "customer";
+  $("settings").hidden = screen === "customer" || screen === "config";
   void wakeLock();
   if (screen === "edit" || screen === "customer") schedule();
 }
@@ -116,7 +116,15 @@ function schedule() {
     80,
   );
 }
+// Si el navegador borró la foto de memoria (pasa en Android), recargarla del archivo original.
+async function ensurePhoto(full = false) {
+  if (!state.file || (!isBlank(state.small) && !(full && isBlank(state.photo)))) return;
+  state.photo = await decode(state.file);
+  state.small = reduced(state.photo);
+}
 async function render() {
+  if (!state.photo) return;
+  await ensurePhoto();
   if (!state.photo) return;
   const version = ++renderVersion,
     frame = await frameImage(state.frames.find((f) => f.id === state.selected));
@@ -200,6 +208,7 @@ function syncControls() {
 async function openPhoto(file) {
   if (!file) return;
   const photo = await decode(file);
+  state.file = file;
   state.photo = photo;
   state.small = reduced(photo);
   state.selected = "none";
@@ -384,6 +393,7 @@ $("done").onclick = safe(async () => {
   b.disabled = true;
   b.textContent = "Preparando…";
   try {
+    await ensurePhoto(true);
     const frame = await frameImage(
         state.frames.find((f) => f.id === state.selected),
       ),
@@ -442,7 +452,7 @@ $("backEdit").onclick = () => navigate("edit");
 $("another").onclick = () => {
   renderVersion++;
   clearTimeout(renderTimer);
-  state.photo = state.small = null;
+  state.photo = state.small = state.file = null;
   state.frameFlip = false;
   exportFile = null;
   if (resultURL) URL.revokeObjectURL(resultURL);
@@ -500,16 +510,16 @@ async function config() {
   }
 }
 $("settings").onclick = safe(async () => {
+  if (state.screen === "config") return;
   previousScreen = state.screen;
   await config();
   navigate("config");
 });
 $("closeSettings").onclick = safe(async () => {
-  if (state.photo) {
-    syncControls();
-    await renderFrames();
-  }
-  navigate(previousScreen);
+  const target = previousScreen === "config" ? "home" : previousScreen;
+  if (state.photo) syncControls();
+  navigate(state.photo || target === "home" ? target : "home");
+  if (state.photo) await renderFrames();
 });
 $("size").onchange = (e) => {
   state.prefs.size = e.target.value;
