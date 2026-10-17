@@ -2,7 +2,8 @@
 
 PWA privada y sin cuentas: las fotos se procesan en el dispositivo. Requiere Node 24 para preparar los archivos; no hay dependencias de ejecución.
 
-1. Agrega PNG con centro transparente a `Marcos/` (recomendado: 1200 × 1800 vertical o 1800 × 1200 horizontal). La app también permite agregar y eliminar marcos propios desde Ajustes.
+1. Agrega PNG con centro transparente a `Marcos/` (los 9 marcos actuales son horizontales para carta). La app también permite agregar y eliminar marcos propios desde Ajustes.
+   Todos los marcos se muestran siempre: se estiran a carta (por defecto), tabloide o los otros formatos y se giran para fotos verticales. Usa Girar marco para invertirlos 180 grados. Para mejor nitidez en tabloide, usa PNG de al menos 3400×2200 px.
 2. Ejecuta `npm run build:frames`, luego `npm test` y `npm run serve`.
 3. Abre http://localhost:8080. Usa `tests/fixtures/foto.png` para probar foto, ajustes, marcos y Guardar. Los dos marcos de prueba están en `tests/fixtures/`.
 

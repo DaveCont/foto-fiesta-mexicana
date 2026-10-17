@@ -1,8 +1,127 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#E4007C"><title>Foto Fiesta Mexicana</title><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png"><link rel="stylesheet" href="css/app.css"></head><body>
-<header><h1>Foto Fiesta Mexicana</h1><button id="settings">⚙ Ajustes</button></header><main>
-<section id="home"><div class="welcome">📷<h2>¡Una foto para celebrar!</h2><p>Toma una foto, elige tu marco y llévate el recuerdo.</p></div><button id="take" class="primary">Tomar foto</button><button id="gallery">Desde galería</button></section>
-<section id="edit" hidden><div class="stage"><canvas id="preview" aria-label="Vista previa de la foto y el marco"></canvas></div><div class="row"><button id="center">Centrar</button><button id="client">Mostrar al cliente</button></div><div id="frames" class="frames" aria-label="Elegir marco"></div><details><summary>Ajustes de foto</summary><div id="filters" class="row"></div><div id="sliders"></div><div class="row"><button id="auto">Mejorar</button><button id="reset">Restablecer</button></div><label><input id="correct" type="checkbox"> Corregir mancha</label><p id="calibrationHint"></p><label>Intensidad <input id="intensity" type="range" min="0" max="100" value="70"></label></details><button id="done" class="primary">Listo</button></section>
-<section id="customer" hidden><div class="stage"><canvas id="customerPreview" aria-label="Foto para el cliente"></canvas></div><div class="row"><button id="previous" aria-label="Marco anterior">❮</button><strong id="frameName"></strong><button id="next" aria-label="Marco siguiente">❯</button><button id="exitCustomer">Salir</button></div></section>
-<section id="final" hidden><div class="stage"><img id="result" alt="Foto final"></div><button id="share" class="primary">Compartir / Imprimir</button><button id="save">Guardar</button><button id="backEdit">Volver a editar</button><button id="another">Tomar otra</button></section>
-<section id="config" hidden><h2>Ajustes de la app</h2><label>Tamaño de impresión <select id="size"><option value="4x6">4 × 6 pulgadas</option><option value="5x7">5 × 7 pulgadas</option><option value="6x8">6 × 8 pulgadas</option></select></label><h3>Calibrar mancha</h3><p>Limpia el lente primero. Fotografía una superficie lisa, uniforme y clara. Mantén el mismo zoom y recalibra al inicio de cada evento. Recupera iluminación, pero no nitidez perdida.</p><div id="calibrations"></div><h3>Marcos</h3><button id="addFrames">Agregar marcos PNG</button><div id="userFrames"></div><button id="closeSettings">Volver</button></section>
-</main><input id="cameraInput" type="file" accept="image/*" capture="environment" hidden><input id="galleryInput" type="file" accept="image/*" hidden><input id="frameInput" type="file" accept="image/png" multiple hidden><input id="calibrationInput" type="file" accept="image/*" capture="environment" hidden><p id="toast" role="status" aria-live="polite" hidden></p><script type="module" src="js/app.js"></script></body></html>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#E4007C" />
+    <title>Foto Fiesta Mexicana</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Foto Fiesta Mexicana</h1>
+      <button id="settings">⚙ Ajustes</button>
+    </header>
+    <main>
+      <section id="home">
+        <div class="welcome">
+          📷
+          <h2>¡Una foto para celebrar!</h2>
+          <p>Toma una foto, elige tu marco y llévate el recuerdo.</p>
+        </div>
+        <button id="take" class="primary">Tomar foto</button
+        ><button id="gallery">Desde galería</button>
+      </section>
+      <section id="edit" hidden>
+        <div class="stage">
+          <canvas
+            id="preview"
+            aria-label="Vista previa de la foto y el marco"
+          ></canvas>
+        </div>
+        <div class="row">
+          <button id="center">Centrar</button
+          ><button id="rotateFrame" disabled>↻ Girar marco</button
+          ><button id="client">Mostrar al cliente</button>
+        </div>
+        <div id="frames" class="frames" aria-label="Elegir marco"></div>
+        <details>
+          <summary>Ajustes de foto</summary>
+          <div id="filters" class="row"></div>
+          <div id="sliders"></div>
+          <div class="row">
+            <button id="auto">Mejorar</button
+            ><button id="reset">Restablecer</button>
+          </div>
+          <label><input id="correct" type="checkbox" /> Corregir mancha</label>
+          <p id="calibrationHint"></p>
+          <label
+            >Intensidad
+            <input id="intensity" type="range" min="0" max="100" value="70"
+          /></label>
+        </details>
+        <button id="done" class="primary">Listo</button>
+      </section>
+      <section id="customer" hidden>
+        <div class="stage">
+          <canvas
+            id="customerPreview"
+            aria-label="Foto para el cliente"
+          ></canvas>
+        </div>
+        <div class="row">
+          <button id="previous" aria-label="Marco anterior">❮</button
+          ><strong id="frameName"></strong
+          ><button id="next" aria-label="Marco siguiente">❯</button
+          ><button id="rotateCustomerFrame" disabled>↻ Girar marco</button
+          ><button id="exitCustomer">Salir</button>
+        </div>
+      </section>
+      <section id="final" hidden>
+        <div class="stage"><img id="result" alt="Foto final" /></div>
+        <button id="share" class="primary">Compartir / Imprimir</button
+        ><button id="save">Guardar</button
+        ><button id="backEdit">Volver a editar</button
+        ><button id="another">Tomar otra</button>
+      </section>
+      <section id="config" hidden>
+        <h2>Ajustes de la app</h2>
+        <label
+          >Tamaño de impresión
+          <select id="size">
+            <option value="carta">Carta (8.5 × 11 in)</option>
+            <option value="tabloide">Tabloide (11 × 17 in)</option>
+            <option value="4x6">4 × 6 in</option>
+            <option value="5x7">5 × 7 in</option>
+            <option value="6x8">6 × 8 in</option>
+          </select></label
+        >
+        <h3>Calibrar mancha</h3>
+        <p>
+          Limpia el lente primero. Fotografía una superficie lisa, uniforme y
+          clara. Mantén el mismo zoom y recalibra al inicio de cada evento.
+          Recupera iluminación, pero no nitidez perdida.
+        </p>
+        <div id="calibrations"></div>
+        <h3>Marcos</h3>
+        <button id="addFrames">Agregar marcos PNG</button>
+        <div id="userFrames"></div>
+        <button id="closeSettings">Volver</button>
+      </section>
+    </main>
+    <input
+      id="cameraInput"
+      type="file"
+      accept="image/*"
+      capture="environment"
+      hidden
+    /><input id="galleryInput" type="file" accept="image/*" hidden /><input
+      id="frameInput"
+      type="file"
+      accept="image/png"
+      multiple
+      hidden
+    /><input
+      id="calibrationInput"
+      type="file"
+      accept="image/*"
+      capture="environment"
+      hidden
+    />
+    <p id="toast" role="status" aria-live="polite" hidden></p>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

@@ -1,27 +1,269 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
-import {applyAdjustments,computeAutoLevels} from '../js/adjust.js';
-import {buildCalibrationMap,applyCalibration} from '../js/vignette.js';
-import {printSizePx,coverTransform,filename} from '../js/compose.js';
-import {buildFrames} from '../scripts/build-frames.mjs';
-import {png} from '../scripts/png.mjs';
-import {all,put,remove,preferences} from '../js/storage.js';
-import {matching} from '../js/frames.js';
-const image=(w,h,fn)=>({width:w,height:h,data:Uint8ClampedArray.from(Array.from({length:w*h},(_,i)=>[...fn(i%w,Math.floor(i/w)),255]).flat())});
-test('Ajustes neutros conservan los píxeles y alfa',()=>{const a=image(4,4,(x,y)=>[x*60,y*60,87]);assert.deepEqual(applyAdjustments(a).data,a.data);});
-test('Brillo mueve la media; B/N iguala canales',()=>{const a=image(8,8,()=>[80,110,150]);assert.ok(applyAdjustments(a,{brightness:20}).data[0]>80);assert.ok(applyAdjustments(a,{brightness:-20}).data[0]<80);const b=applyAdjustments(a,{filter:'bn'}).data;assert.equal(b[0],b[1]);assert.equal(b[1],b[2]);});
-test('Mejorar estira el rango comprimido',()=>{const a=image(100,1,x=>[100+x%21,100+x%21,100+x%21]);assert.deepEqual(computeAutoLevels(a),{low:100,high:120});const b=applyAdjustments(a,{auto:true}).data;assert.equal(b[0],0);assert.equal(b[20*4],255);});
-test('Calibración uniforme y corrección neutra',()=>{const a=image(40,60,()=>[120,120,120]),m=buildCalibrationMap(a);assert.ok([...m.data].every(v=>Math.abs(v-1)<.001));assert.deepEqual(applyCalibration(a,m,0).data,a.data);});
-test('Calibración recupera una esquina oscura suave',()=>{const a=image(256,256,(x,y)=>{const v=100+80*Math.min(1,(x+y)/256);return [v,v,v];}),m=buildCalibrationMap(a),b=applyCalibration(a,m,1);assert.ok(Math.abs(b.data[0]-b.data[(128*256+128)*4])<35);});
-test('Interpolación y límite de ganancia',()=>{const a=image(3,3,()=>[40,40,40]);const b=applyCalibration(a,{width:2,height:2,data:new Float32Array([.01,.01,.01,.01])},1);assert.equal(b.data[0],100);assert.equal(b.data[3],255);const c=applyCalibration(a,{width:2,height:2,data:new Float32Array([1,.5,1,.5])},1);assert.ok(c.data[4]>40&&c.data[4]<80);});
-test('Tres tamaños y dos orientaciones a 300 ppp',()=>{for(const [s,w,h] of [['4x6',1200,1800],['5x7',1500,2100],['6x8',1800,2400]]){assert.deepEqual(printSizePx(s,'portrait'),{width:w,height:h});assert.deepEqual(printSizePx(s,'landscape'),{width:h,height:w});}});
-test('Cover cubre todo el lienzo con pan extremo y zoom',()=>{for(const [pw,ph] of [[400,300],[300,400]])for(const zoom of [1,4])for(const pan of [-100,100]){const t=coverTransform(pw,ph,1200,1800,{panX:pan,panY:pan,zoom});assert.ok(t.x<=0&&t.y<=0&&t.x+t.width>=1200&&t.y+t.height>=1800);}});
-test('Nombre JPEG local',()=>assert.equal(filename(new Date(2026,9,16,9,8,7)),'fiesta-20261016-090807.jpg'));
-test('Sin marco permanece primero y se filtra orientación',()=>{const frames=[{id:'v',orientation:'portrait'},{id:'h',orientation:'landscape'},{id:'s',orientation:'square'}];assert.deepEqual(matching(frames,'portrait').map(f=>f.id),['none','v','s']);assert.deepEqual(matching(frames,'landscape').map(f=>f.id),['none','h','s']);});
-test('Almacenamiento bloqueado conserva datos en memoria',async()=>{await put('frames',{id:'prueba',name:'Marco'});assert.equal((await all('frames'))[0].name,'Marco');await remove('frames','prueba');assert.deepEqual(await all('frames'),[]);assert.deepEqual(preferences({size:'5x7'}),{size:'5x7'});});
-test('Los dos marcos de prueba tienen dimensiones y orientación válidas',async()=>{const dir=await mkdtemp(path.join(os.tmpdir(),'fiesta-fixtures-'));try{await mkdir(path.join(dir,'input'));for(const name of ['marco-vertical.png','marco-horizontal.png'])await writeFile(path.join(dir,'input',name),await readFile(new URL(`fixtures/${name}`,import.meta.url)));const frames=await buildFrames(path.join(dir,'input'),path.join(dir,'frames.json'));assert.deepEqual(frames.map(f=>[f.width,f.height,f.orientation]),[[180,120,'landscape'],[120,180,'portrait']]);}finally{await rm(dir,{recursive:true,force:true});}});
-test('Constructor de marcos: vacío, PNG y extensión mayúscula',async()=>{const dir=await mkdtemp(path.join(os.tmpdir(),'fiesta-'));try{const input=path.join(dir,'Marcos'),output=path.join(dir,'frames.json');await mkdir(input);assert.deepEqual(await buildFrames(input,output),[]);await writeFile(path.join(input,'fiesta_vertical.PNG'),png(12,18,()=>[255,0,0,0]));const [f]=await buildFrames(input,output);assert.equal(f.width,12);assert.equal(f.height,18);assert.equal(f.orientation,'portrait');assert.equal(f.name,'Fiesta vertical');assert.equal(JSON.parse(await readFile(output,'utf8')).length,1);}finally{await rm(dir,{recursive:true,force:true});}});
-test('Calibración conserva dimensiones con objetos tipo ImageData (getters en prototipo)',()=>{class FakeImageData{constructor(w,h){this._w=w;this._h=h;this.data=new Uint8ClampedArray(w*h*4).fill(120);}get width(){return this._w;}get height(){return this._h;}}const img=new FakeImageData(8,6),map=buildCalibrationMap(img),out=applyCalibration(img,map,1),off=applyCalibration(img,map,0);assert.equal(out.width,8);assert.equal(out.height,6);assert.equal(off.width,8);assert.equal(off.height,6);});
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { applyAdjustments, computeAutoLevels } from "../js/adjust.js";
+import { buildCalibrationMap, applyCalibration } from "../js/vignette.js";
+import {
+  printSizePx,
+  coverTransform,
+  filename,
+  frameRotation,
+  frameDrawTransform,
+} from "../js/compose.js";
+import { buildFrames, frameName } from "../scripts/build-frames.mjs";
+import { png } from "../scripts/png.mjs";
+import { all, put, remove, preferences } from "../js/storage.js";
+import { matching } from "../js/frames.js";
+const image = (w, h, fn) => ({
+  width: w,
+  height: h,
+  data: Uint8ClampedArray.from(
+    Array.from({ length: w * h }, (_, i) => [
+      ...fn(i % w, Math.floor(i / w)),
+      255,
+    ]).flat(),
+  ),
+});
+test("Ajustes neutros conservan los píxeles y alfa", () => {
+  const a = image(4, 4, (x, y) => [x * 60, y * 60, 87]);
+  assert.deepEqual(applyAdjustments(a).data, a.data);
+});
+test("Brillo mueve la media; B/N iguala canales", () => {
+  const a = image(8, 8, () => [80, 110, 150]);
+  assert.ok(applyAdjustments(a, { brightness: 20 }).data[0] > 80);
+  assert.ok(applyAdjustments(a, { brightness: -20 }).data[0] < 80);
+  const b = applyAdjustments(a, { filter: "bn" }).data;
+  assert.equal(b[0], b[1]);
+  assert.equal(b[1], b[2]);
+});
+test("Mejorar estira el rango comprimido", () => {
+  const a = image(100, 1, (x) => [
+    100 + (x % 21),
+    100 + (x % 21),
+    100 + (x % 21),
+  ]);
+  assert.deepEqual(computeAutoLevels(a), { low: 100, high: 120 });
+  const b = applyAdjustments(a, { auto: true }).data;
+  assert.equal(b[0], 0);
+  assert.equal(b[20 * 4], 255);
+});
+test("Calibración uniforme y corrección neutra", () => {
+  const a = image(40, 60, () => [120, 120, 120]),
+    m = buildCalibrationMap(a);
+  assert.ok([...m.data].every((v) => Math.abs(v - 1) < 0.001));
+  assert.deepEqual(applyCalibration(a, m, 0).data, a.data);
+});
+test("Calibración recupera una esquina oscura suave", () => {
+  const a = image(256, 256, (x, y) => {
+      const v = 100 + 80 * Math.min(1, (x + y) / 256);
+      return [v, v, v];
+    }),
+    m = buildCalibrationMap(a),
+    b = applyCalibration(a, m, 1);
+  assert.ok(Math.abs(b.data[0] - b.data[(128 * 256 + 128) * 4]) < 35);
+});
+test("Interpolación y límite de ganancia", () => {
+  const a = image(3, 3, () => [40, 40, 40]);
+  const b = applyCalibration(
+    a,
+    { width: 2, height: 2, data: new Float32Array([0.01, 0.01, 0.01, 0.01]) },
+    1,
+  );
+  assert.equal(b.data[0], 100);
+  assert.equal(b.data[3], 255);
+  const c = applyCalibration(
+    a,
+    { width: 2, height: 2, data: new Float32Array([1, 0.5, 1, 0.5]) },
+    1,
+  );
+  assert.ok(c.data[4] > 40 && c.data[4] < 80);
+});
+test("Tres tamaños y dos orientaciones a 300 ppp", () => {
+  for (const [s, w, h] of [
+    ["4x6", 1200, 1800],
+    ["5x7", 1500, 2100],
+    ["6x8", 1800, 2400],
+  ]) {
+    assert.deepEqual(printSizePx(s, "portrait"), { width: w, height: h });
+    assert.deepEqual(printSizePx(s, "landscape"), { width: h, height: w });
+  }
+});
+test("Cover cubre todo el lienzo con pan extremo y zoom", () => {
+  for (const [pw, ph] of [
+    [400, 300],
+    [300, 400],
+  ])
+    for (const zoom of [1, 4])
+      for (const pan of [-100, 100]) {
+        const t = coverTransform(pw, ph, 1200, 1800, {
+          panX: pan,
+          panY: pan,
+          zoom,
+        });
+        assert.ok(
+          t.x <= 0 &&
+            t.y <= 0 &&
+            t.x + t.width >= 1200 &&
+            t.y + t.height >= 1800,
+        );
+      }
+});
+test("Nombre JPEG local", () =>
+  assert.equal(
+    filename(new Date(2026, 9, 16, 9, 8, 7)),
+    "fiesta-20261016-090807.jpg",
+  ));
+test("Sin marco permanece primero y se muestran todos", () => {
+  const frames = [
+    { id: "v", orientation: "portrait" },
+    { id: "h", orientation: "landscape" },
+    { id: "s", orientation: "square" },
+  ];
+  assert.deepEqual(
+    matching(frames, "portrait").map((f) => f.id),
+    ["none", "v", "h", "s"],
+  );
+  assert.deepEqual(
+    matching(frames, "landscape").map((f) => f.id),
+    ["none", "v", "h", "s"],
+  );
+});
+test("Almacenamiento bloqueado conserva datos en memoria", async () => {
+  await put("frames", { id: "prueba", name: "Marco" });
+  assert.equal((await all("frames"))[0].name, "Marco");
+  await remove("frames", "prueba");
+  assert.deepEqual(await all("frames"), []);
+  assert.deepEqual(preferences({ size: "5x7" }), { size: "5x7" });
+});
+test("Los dos marcos de prueba tienen dimensiones y orientación válidas", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "fiesta-fixtures-"));
+  try {
+    await mkdir(path.join(dir, "input"));
+    for (const name of ["marco-vertical.png", "marco-horizontal.png"])
+      await writeFile(
+        path.join(dir, "input", name),
+        await readFile(new URL(`fixtures/${name}`, import.meta.url)),
+      );
+    const frames = await buildFrames(
+      path.join(dir, "input"),
+      path.join(dir, "frames.json"),
+    );
+    assert.deepEqual(
+      frames.map((f) => [f.width, f.height, f.orientation]),
+      [
+        [180, 120, "landscape"],
+        [120, 180, "portrait"],
+      ],
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+test("Constructor de marcos: vacío, PNG y extensión mayúscula", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "fiesta-"));
+  try {
+    const input = path.join(dir, "Marcos"),
+      output = path.join(dir, "frames.json");
+    await mkdir(input);
+    assert.deepEqual(await buildFrames(input, output), []);
+    await writeFile(
+      path.join(input, "fiesta_vertical.PNG"),
+      png(12, 18, () => [255, 0, 0, 0]),
+    );
+    const [f] = await buildFrames(input, output);
+    assert.equal(f.width, 12);
+    assert.equal(f.height, 18);
+    assert.equal(f.orientation, "portrait");
+    assert.equal(f.name, "Fiesta vertical");
+    assert.equal(JSON.parse(await readFile(output, "utf8")).length, 1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+test("Calibración conserva dimensiones con objetos tipo ImageData (getters en prototipo)", () => {
+  class FakeImageData {
+    constructor(w, h) {
+      this._w = w;
+      this._h = h;
+      this.data = new Uint8ClampedArray(w * h * 4).fill(120);
+    }
+    get width() {
+      return this._w;
+    }
+    get height() {
+      return this._h;
+    }
+  }
+  const img = new FakeImageData(8, 6),
+    map = buildCalibrationMap(img),
+    out = applyCalibration(img, map, 1),
+    off = applyCalibration(img, map, 0);
+  assert.equal(out.width, 8);
+  assert.equal(out.height, 6);
+  assert.equal(off.width, 8);
+  assert.equal(off.height, 6);
+});
+
+test("Carta y tabloide en ambas orientaciones", () => {
+  for (const [size, width, height] of [
+    ["carta", 2550, 3300],
+    ["tabloide", 2200, 3400],
+  ]) {
+    assert.deepEqual(printSizePx(size, "portrait"), { width, height });
+    assert.deepEqual(printSizePx(size, "landscape"), {
+      width: height,
+      height: width,
+    });
+  }
+  assert.deepEqual(printSizePx(), { width: 2550, height: 3300 });
+  assert.deepEqual(printSizePx("invalid"), printSizePx("carta"));
+});
+test("Rotacion automatica del marco", () => {
+  for (const frame of ["portrait", "landscape", "square"]) {
+    for (const output of ["portrait", "landscape", "square"]) {
+      assert.equal(
+        frameRotation(frame, output),
+        frame !== "square" && output !== "square" && frame !== output ? 90 : 0,
+      );
+    }
+  }
+});
+test("Los cuatro giros cubren exactamente el lienzo", () => {
+  for (const [width, height] of [
+    [2550, 3300],
+    [3400, 2200],
+  ]) {
+    for (const angle of [0, 90, 180, 270]) {
+      const t = frameDrawTransform(angle, width, height);
+      assert.equal(t.rotation, (angle * Math.PI) / 180);
+      const corners = [
+        [0, 0],
+        [t.drawW, 0],
+        [0, t.drawH],
+        [t.drawW, t.drawH],
+      ].map(([x, y]) => [
+        Math.round(t.tx + x * Math.cos(t.rotation) - y * Math.sin(t.rotation)),
+        Math.round(t.ty + x * Math.sin(t.rotation) + y * Math.cos(t.rotation)),
+      ]);
+      assert.deepEqual(
+        [...new Set(corners.map(([x]) => x))].sort((a, b) => a - b),
+        [0, width],
+      );
+      assert.deepEqual(
+        [...new Set(corners.map(([, y]) => y))].sort((a, b) => a - b),
+        [0, height],
+      );
+    }
+  }
+});
+test("Nombres de marcos limpios", () => {
+  for (const [file, name] of [
+    ["Marco festivo mexicano dorado.png", "Festivo mexicano dorado"],
+    ["MARCO fiesta flores (1).PNG", "Fiesta flores 2"],
+    ["Marco fiesta flores (0).png", "Fiesta flores 1"],
+    ["fiesta_mexicana-dorada.png", "Fiesta mexicana dorada"],
+  ])
+    assert.equal(frameName(file), name);
+});
