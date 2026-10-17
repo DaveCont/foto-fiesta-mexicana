@@ -145,11 +145,14 @@ async function render() {
   $("frameName").textContent =
     choices().find((f) => f.id === state.selected)?.name || "Sin marco";
 }
+let framesVersion = 0;
 async function renderFrames() {
   syncFrameButtons();
+  const version = ++framesVersion;
   const holder = $("frames");
   holder.replaceChildren();
   for (const f of choices()) {
+    if (version !== framesVersion) return;
     const b = document.createElement("button");
     b.textContent = f.name;
     b.setAttribute("aria-pressed", String(f.id === state.selected));
